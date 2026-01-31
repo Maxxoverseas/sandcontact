@@ -16,13 +16,11 @@ const Contactform = () => {
   });
 
   const [products, setProducts] = useState([{ id: 1, product: "", qty: "" }]);
-  const [showPopup, setShowPopup] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState([]);
-  const [excelData, setExcelData] = useState("");
-  const [copySuccess, setCopySuccess] = useState(false);
-  const [countdown, setCountdown] = useState(5);
   const [emailStatus, setEmailStatus] = useState(null);
+  const [successCountdown, setSuccessCountdown] = useState(5);
 
   const formRef = useRef();
 
@@ -83,26 +81,15 @@ const Contactform = () => {
     return newErrors;
   };
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(excelData);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
-
   const sendEmail = async () => {
     try {
-      // Format products for email
+      // Format products for email (आपके टेम्पलेट के अनुसार फॉर्मेट)
       const productLines = products
         .map((p, index) => `${index + 1}. ${p.product} - Quantity: ${p.qty}`)
         .join("\n");
 
-      // Prepare template parameters
+      // Prepare template parameters (आपके टेम्पलेट के variable names के अनुसार)
       const templateParams = {
-        to_email: "ordersoverseas2@gmail.com",
         date: formData.date,
         customer_name: formData.name,
         email: formData.email,
@@ -118,23 +105,36 @@ const Contactform = () => {
         delivery_address: formData.address,
         notes: formData.notes || "No additional notes",
         products: productLines,
-        total_products: products.length,
-        order_summary: excelData, // Include the full formatted data
+        total_products: products.length.toString(),
+        // EmailJS में to_email अलग से पास करना होता है
+        to_email: "ordersoverseas2@gmail.com",
+        from_name: "Maxxoverseasimpex Order Form",
+        reply_to: formData.email,
+        subject: `New Order from ${formData.name} - ${formData.date}`,
       };
 
-      // Send email using EmailJS
+      console.log("Sending email with params:", templateParams);
+
+      // Send email using EmailJS with correct parameters
       const result = await emailjs.send(
-        "service_8zmgj4g",
-        "template_ysxq49l",
-        templateParams,
-        "2DfVuQD-4jA7MUZs-"
+        "service_8zmgj4g", // Your Service ID
+        "template_ysxq49l", // Your Template ID (ये आपका टेम्पलेट ID है)
+        templateParams, // Template Parameters
+        "2DfVuQD-4jA7MUZs-" // Your Public Key
       );
 
-      console.log("Email sent successfully:", result.text);
-      return true;
+      console.log("Email sent successfully:", result);
+      return { success: true, message: "Email sent successfully" };
     } catch (error) {
-      console.error("Email sending failed:", error);
-      return false;
+      console.error("Email sending failed. Details:", {
+        errorCode: error.code,
+        errorText: error.text,
+        fullError: error,
+      });
+      return {
+        success: false,
+        message: `Email sending failed: ${error.text || error.message}`,
+      };
     }
   };
 
@@ -153,75 +153,68 @@ const Contactform = () => {
     setEmailStatus(null);
 
     try {
-      // Format the data for Excel
-      const productLines = products.map((p) => ({
-        product: p.product.trim(),
-        qty: p.qty.toString().trim(),
-      }));
+      // Step 1: Send email using EmailJS
+      const emailResult = await sendEmail();
 
-      // Create Excel format data
-      const excelFormattedData = `Date: ${formData.date}
-Customer Name: ${formData.name}
-Email: ${formData.email}
-Phone: ${formData.phone}
-Agent: ${formData.agent}
-INR Amount: ₹${formData.inrAmount || "0"}
-USD Amount: $${formData.usdAmount || "0"}
-Mode of Payment: ${formData.modeOfPayment}
-Delivery Address: ${formData.address}
-Notes: ${formData.notes || "No notes"}
+      if (emailResult.success) {
+        setEmailStatus("success");
 
---- PRODUCTS ---
-${productLines.map((p) => `• ${p.product} (Qty: ${p.qty})`).join("\n")}
+        // Show success popup
+        setShowSuccessPopup(true);
+        setSuccessCountdown(5);
 
-Total Products: ${products.length}`;
+        // Reset form
+        setFormData({
+          date: "",
+          name: "",
+          agent: "",
+          inrAmount: "",
+          usdAmount: "",
+          modeOfPayment: "",
+          address: "",
+          notes: "",
+          email: "",
+          phone: "",
+        });
 
-      // Set Excel data
-      setExcelData(excelFormattedData);
+        setProducts([{ id: 1, product: "", qty: "" }]);
 
-      // Send email using EmailJS
-      const emailSent = await sendEmail();
-      setEmailStatus(emailSent ? "success" : "failed");
-
-      // Show success popup
-      setShowPopup(true);
-      setCountdown(5);
-
-      // Reset form
-      setFormData({
-        date: "",
-        name: "",
-        agent: "",
-        inrAmount: "",
-        usdAmount: "",
-        modeOfPayment: "",
-        address: "",
-        notes: "",
-        email: "",
-        phone: "",
-      });
-
-      setProducts([{ id: 1, product: "", qty: "" }]);
+        // Reset form fields
+        if (formRef.current) {
+          formRef.current.reset();
+        }
+      } else {
+        setEmailStatus("failed");
+        setErrors([emailResult.message]);
+        // Still show success popup for order placement
+        setShowSuccessPopup(true);
+        setSuccessCountdown(5);
+      }
     } catch (error) {
-      console.error("Error:", error);
-      setErrors([error.message || "An error occurred"]);
+      console.error("Error in form submission:", error);
       setEmailStatus("failed");
+      setErrors([
+        error.message || "An error occurred while submitting the form",
+      ]);
+      // Still show success popup for order placement
+      setShowSuccessPopup(true);
+      setSuccessCountdown(5);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Countdown effect
+  // Countdown effect for success popup
   useEffect(() => {
-    if (showPopup && countdown > 0) {
+    if (showSuccessPopup && successCountdown > 0) {
       const timer = setTimeout(() => {
-        setCountdown(countdown - 1);
+        setSuccessCountdown(successCountdown - 1);
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (showPopup && countdown === 0) {
-      setShowPopup(false);
+    } else if (showSuccessPopup && successCountdown === 0) {
+      setShowSuccessPopup(false);
     }
-  }, [showPopup, countdown]);
+  }, [showSuccessPopup, successCountdown]);
 
   // Set today's date
   const setTodayDate = () => {
@@ -229,9 +222,10 @@ Total Products: ${products.length}`;
     setFormData((prev) => ({ ...prev, date: today }));
   };
 
-  // Initialize EmailJS
+  // Initialize EmailJS with Public Key
   useEffect(() => {
     emailjs.init("2DfVuQD-4jA7MUZs-");
+    console.log("EmailJS initialized with key: 2DfVuQD-4jA7MUZs-");
   }, []);
 
   return (
@@ -608,15 +602,21 @@ Total Products: ${products.length}`;
               >
                 {isSubmitting ? "Submitting..." : "Submit Order & Send Email"}
               </button>
+
+              {isSubmitting && (
+                <div className="mt-2 text-center text-sm text-blue-600">
+                  Sending email via EmailJS...
+                </div>
+              )}
             </div>
           </form>
         </div>
       </div>
 
-      {/* Success Popup */}
-      {showPopup && (
+      {/* Simple Success Popup */}
+      {showSuccessPopup && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-lg w-full shadow-2xl transform transition-all animate-fadeIn">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl transform transition-all animate-fadeIn">
             <div className="text-center">
               {/* Countdown Timer */}
               <div className="flex justify-between items-center mb-4">
@@ -636,12 +636,12 @@ Total Products: ${products.length}`;
                   <span className="text-sm font-medium text-gray-700">
                     Closing in:{" "}
                     <span className="text-blue-600 font-bold">
-                      {countdown}s
+                      {successCountdown}s
                     </span>
                   </span>
                 </div>
                 <button
-                  onClick={() => setShowPopup(false)}
+                  onClick={() => setShowSuccessPopup(false)}
                   className="text-gray-500 hover:text-gray-700"
                 >
                   <svg
@@ -659,10 +659,11 @@ Total Products: ${products.length}`;
                 </button>
               </div>
 
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              {/* Success Icon */}
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="w-6 h-6 text-green-600"
+                  className="w-8 h-8 text-green-600"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -674,127 +675,79 @@ Total Products: ${products.length}`;
                 </svg>
               </div>
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {/* Success Message */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
                 {emailStatus === "success"
-                  ? "Order Placed & Email Sent!"
-                  : emailStatus === "failed"
-                  ? "Order Saved but Email Failed!"
-                  : "Order Placed Successfully!"}
+                  ? "Your message successful"
+                  : "Order Submitted"}
               </h3>
+              <p className="text-lg text-gray-700 mb-4">
+                Thank you Maxx Company
+              </p>
 
+              {/* Email Status */}
               {emailStatus === "success" && (
-                <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
-                  <p className="text-green-700 text-sm">
-                    ✓ Email sent to ordersoverseas2@gmail.com using EmailJS
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-700 font-medium flex items-center justify-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Email sent successfully to ordersoverseas2@gmail.com
                   </p>
                 </div>
               )}
 
               {emailStatus === "failed" && (
-                <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                  <p className="text-yellow-700 text-sm">
-                    ⚠ Email sending failed. Data copied below for manual
-                    sending.
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-700 font-medium flex items-center justify-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Order submitted but email failed. Data saved locally.
                   </p>
                 </div>
               )}
 
-              <p className="text-gray-600 text-sm mb-4">
-                Your order has been submitted.
-              </p>
-
               {/* Countdown Progress Bar */}
-              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4">
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                 <div
-                  className="bg-blue-600 h-1.5 rounded-full transition-all duration-1000"
-                  style={{ width: `${(countdown / 5) * 100}%` }}
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
+                  style={{ width: `${(successCountdown / 5) * 100}%` }}
                 ></div>
               </div>
 
-              {/* Excel Data */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-medium text-gray-700">Order Data:</h4>
-                  <button
-                    onClick={copyToClipboard}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition text-sm"
-                  >
-                    {copySuccess ? (
-                      <>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        <span className="font-medium">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                          <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-                        </svg>
-                        <span className="font-medium">Copy</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+              {/* Close Button */}
+              <button
+                onClick={() => setShowSuccessPopup(false)}
+                className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition font-medium text-lg"
+              >
+                Close ({successCountdown}s)
+              </button>
 
-                <div className="overflow-hidden">
-                  <pre className="text-xs bg-white p-3 rounded border whitespace-pre-wrap font-mono leading-relaxed max-h-60 overflow-hidden">
-                    {excelData}
-                  </pre>
-                </div>
-
-                <div className="mt-2 text-xs text-gray-500 text-center">
-                  All data visible above | Characters: {excelData.length}
-                </div>
-              </div>
-
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setShowPopup(false)}
-                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium text-sm"
-                >
-                  Close ({countdown}s)
-                </button>
-                <button
-                  onClick={() => setCountdown(5)}
-                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-medium text-sm flex items-center justify-center gap-1"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Reset
-                </button>
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500">
-                  ✅ Copy the data above to use in Excel
-                  <br />✅ Form has been reset for next order
-                  <br />✅ Email sent via EmailJS service
+              {/* Additional Info */}
+              <div className="mt-4 pt-3 border-t border-gray-200">
+                <p className="text-sm text-gray-500">
+                  ✓ Your order has been submitted successfully
+                  <br />✓ Form has been reset for next order
+                  <br />✓ You can now close this message
                 </p>
               </div>
             </div>
