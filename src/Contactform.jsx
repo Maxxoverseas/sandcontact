@@ -21,8 +21,10 @@ const Contactform = () => {
   const [errors, setErrors] = useState([]);
   const [emailStatus, setEmailStatus] = useState(null);
   const [successCountdown, setSuccessCountdown] = useState(5);
+  const [showPreviewBox, setShowPreviewBox] = useState(false);
 
   const formRef = useRef();
+  const previewBoxRef = useRef();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -83,12 +85,12 @@ const Contactform = () => {
 
   const sendEmail = async () => {
     try {
-      // Format products for email (आपके टेम्पलेट के अनुसार फॉर्मेट)
+      // Format products for email
       const productLines = products
         .map((p, index) => `${index + 1}. ${p.product} - Quantity: ${p.qty}`)
         .join("\n");
 
-      // Prepare template parameters (आपके टेम्पलेट के variable names के अनुसार)
+      // Prepare template parameters
       const templateParams = {
         date: formData.date,
         customer_name: formData.name,
@@ -106,7 +108,6 @@ const Contactform = () => {
         notes: formData.notes || "No additional notes",
         products: productLines,
         total_products: products.length.toString(),
-        // EmailJS में to_email अलग से पास करना होता है
         to_email: "ordersoverseas2@gmail.com",
         from_name: "Maxxoverseasimpex Order Form",
         reply_to: formData.email,
@@ -118,7 +119,7 @@ const Contactform = () => {
       // Send email using EmailJS with correct parameters
       const result = await emailjs.send(
         "service_8zmgj4g", // Your Service ID
-        "template_ysxq49l", // Your Template ID (ये आपका टेम्पलेट ID है)
+        "template_ysxq49l", // Your Template ID
         templateParams, // Template Parameters
         "2DfVuQD-4jA7MUZs-" // Your Public Key
       );
@@ -178,6 +179,7 @@ const Contactform = () => {
         });
 
         setProducts([{ id: 1, product: "", qty: "" }]);
+        setShowPreviewBox(false);
 
         // Reset form fields
         if (formRef.current) {
@@ -228,9 +230,47 @@ const Contactform = () => {
     console.log("EmailJS initialized with key: 2DfVuQD-4jA7MUZs-");
   }, []);
 
+  // Handle Preview button click
+  const handlePreview = () => {
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setShowPreviewBox(true);
+    // Scroll to preview box
+    setTimeout(() => {
+      previewBoxRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  // Handle Edit button click
+  const handleEdit = () => {
+    setShowPreviewBox(false);
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "Not provided";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  // Get email format products
+  const getEmailFormattedProducts = () => {
+    return products
+      .map((p, index) => `${index + 1}. ${p.product} - Quantity: ${p.qty}`)
+      .join("\n");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="bg-white shadow-2xl rounded-xl p-6 md:p-8">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
@@ -243,6 +283,269 @@ const Contactform = () => {
               Fill in the details below to place your order
             </p>
           </div>
+
+          {/* Preview Button */}
+          <div className="flex justify-end mb-6">
+            <button
+              type="button"
+              onClick={handlePreview}
+              className="flex items-center gap-2 bg-purple-600 text-white px-5 py-3 rounded-lg hover:bg-purple-700 transition font-medium shadow-lg hover:shadow-xl"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path
+                  fillRule="evenodd"
+                  d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Preview Order
+            </button>
+          </div>
+
+          {/* Preview Box */}
+          {showPreviewBox && (
+            <div
+              ref={previewBoxRef}
+              className="mb-8 border-2 border-blue-300 rounded-xl bg-gradient-to-br from-blue-50 to-white shadow-2xl animate-slideDown"
+            >
+              <div className="p-6">
+                {/* Preview Header */}
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-lg">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6 text-blue-600"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-800">
+                        Order Preview
+                      </h3>
+                      <p className="text-gray-600">
+                        This is how your order will appear in the email
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleEdit}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                    Edit
+                  </button>
+                </div>
+
+                {/* Preview Content - Email Format */}
+                <div className="space-y-6">
+                  {/* Order Header */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div>
+                        <h4 className="text-lg font-bold text-gray-900">
+                          Maxxoverseasimpex Order Form
+                        </h4>
+                        <p className="text-gray-600">New Order Submission</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-gray-700">
+                          <span className="font-semibold">Date:</span>{" "}
+                          {formatDate(formData.date)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer Information */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">
+                      Customer Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Customer Name</p>
+                        <p className="font-medium text-gray-800">
+                          {formData.name}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Agent</p>
+                        <p className="font-medium text-gray-800">
+                          {formData.agent}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium text-gray-800">
+                          {formData.email}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Phone</p>
+                        <p className="font-medium text-gray-800">
+                          {formData.phone}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Products */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">
+                      Products ({products.length} items)
+                    </h4>
+                    <div className="space-y-3">
+                      {products.map((product, index) => (
+                        <div
+                          key={product.id}
+                          className="bg-white border border-gray-200 rounded p-3"
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800">
+                                {index + 1}. {product.product}
+                              </p>
+                            </div>
+                            <div className="md:text-right">
+                              <p className="text-gray-700">
+                                <span className="font-semibold">Quantity:</span>{" "}
+                                {product.qty}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Amount Details */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">
+                      Amount Details
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white border border-gray-200 rounded p-3">
+                        <p className="text-sm text-gray-500">INR Amount</p>
+                        <p className="text-xl font-bold text-gray-800">
+                          {formData.inrAmount
+                            ? `₹${formData.inrAmount}`
+                            : "Not provided"}
+                        </p>
+                      </div>
+                      <div className="bg-white border border-gray-200 rounded p-3">
+                        <p className="text-sm text-gray-500">USD Amount</p>
+                        <p className="text-xl font-bold text-gray-800">
+                          {formData.usdAmount
+                            ? `$${formData.usdAmount}`
+                            : "Not provided"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment & Delivery */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">
+                      Payment & Delivery
+                    </h4>
+                    <div className="space-y-4">
+                      <div className="bg-white border border-gray-200 rounded p-3">
+                        <p className="text-sm text-gray-500">Mode of Payment</p>
+                        <p className="font-medium text-gray-800">
+                          {formData.modeOfPayment}
+                        </p>
+                      </div>
+                      <div className="bg-white border border-gray-200 rounded p-3">
+                        <p className="text-sm text-gray-500">
+                          Delivery Address
+                        </p>
+                        <p className="font-medium text-gray-800 whitespace-pre-line">
+                          {formData.address}
+                        </p>
+                      </div>
+                      {formData.notes && (
+                        <div className="bg-white border border-gray-200 rounded p-3">
+                          <p className="text-sm text-gray-500">
+                            Additional Notes
+                          </p>
+                          <p className="font-medium text-gray-800 whitespace-pre-line">
+                            {formData.notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Email Format Preview */}
+                  <div className="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                      </svg>
+                      Email Format Preview
+                    </h4>
+                    <div className="bg-white border border-gray-200 rounded p-4 font-mono text-sm text-gray-700 whitespace-pre-line overflow-x-auto">
+                      New Order from {formData.name} - {formData.date}
+                      Customer Information: - Name: {formData.name}- Email:{" "}
+                      {formData.email}- Phone: {formData.phone}- Agent:{" "}
+                      {formData.agent}
+                      Products:
+                      {getEmailFormattedProducts()}
+                      Amount Details: - INR Amount:{" "}
+                      {formData.inrAmount
+                        ? `₹${formData.inrAmount}`
+                        : "Not provided"}
+                      - USD Amount:{" "}
+                      {formData.usdAmount
+                        ? `$${formData.usdAmount}`
+                        : "Not provided"}
+                      Payment & Delivery: - Mode of Payment:{" "}
+                      {formData.modeOfPayment}- Delivery Address:{" "}
+                      {formData.address}- Additional Notes:{" "}
+                      {formData.notes || "No additional notes"}
+                    </div>
+                  </div>
+
+                  {/* Close Preview Button */}
+                  <div className="flex justify-center pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleEdit}
+                      className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-medium"
+                    >
+                      Close Preview & Continue Editing
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Display */}
           {errors.length > 0 && (
@@ -272,6 +575,7 @@ const Contactform = () => {
             </div>
           )}
 
+          {/* Main Form */}
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
             {/* Customer Information Section */}
             <div className="bg-gray-50 p-6 rounded-lg">
@@ -598,7 +902,7 @@ const Contactform = () => {
                   isSubmitting
                     ? "bg-blue-400"
                     : "bg-blue-600 hover:bg-blue-700 transform hover:-translate-y-1"
-                } text-white font-semibold py-4 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 text-lg`}
+                } text-white font-semibold py-4 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 text-lg shadow-lg hover:shadow-xl`}
               >
                 {isSubmitting ? "Submitting..." : "Submit Order & Send Email"}
               </button>
@@ -768,6 +1072,19 @@ const Contactform = () => {
           to {
             opacity: 1;
             transform: scale(1);
+          }
+        }
+        .animate-slideDown {
+          animation: slideDown 0.4s ease-out;
+        }
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
       `}</style>
