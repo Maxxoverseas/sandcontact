@@ -90,36 +90,31 @@ const Contactform = () => {
         .map((p, index) => `${index + 1}. ${p.product} - Quantity: ${p.qty}`)
         .join("\n");
 
-      // Prepare template parameters
+      // Prepare template parameters - Match these with your EmailJS template variables
       const templateParams = {
+        to_email: "ordersoverseas2@gmail.com",
+        from_name: formData.name || "Customer",
+        from_email: formData.email,
+        from_phone: formData.phone,
         date: formData.date,
-        customer_name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
         agent: formData.agent,
-        inr_amount: formData.inrAmount
-          ? `₹${formData.inrAmount}`
-          : "Not provided",
-        usd_amount: formData.usdAmount
-          ? `$${formData.usdAmount}`
-          : "Not provided",
+        inr_amount: formData.inrAmount || "Not provided",
+        usd_amount: formData.usdAmount || "Not provided",
         mode_of_payment: formData.modeOfPayment,
         delivery_address: formData.address,
         notes: formData.notes || "No additional notes",
         products: productLines,
         total_products: products.length.toString(),
-        to_email: "ordersoverseas2@gmail.com",
-        from_name: "Maxxoverseasimpex Order Form",
         reply_to: formData.email,
         subject: `New Order from ${formData.name} - ${formData.date}`,
       };
 
       console.log("Sending email with params:", templateParams);
 
-      // Send email using EmailJS with correct parameters
+      // Send email using EmailJS with your credentials
       const result = await emailjs.send(
-        "service_8zmgj4g", // Your Service ID
-        "template_ysxq49l", // Your Template ID
+        "service_snl6lko", // Your Service ID
+        "template_nnr5jmj", // Your Template ID
         templateParams, // Template Parameters
         "2DfVuQD-4jA7MUZs-" // Your Public Key
       );
@@ -128,13 +123,16 @@ const Contactform = () => {
       return { success: true, message: "Email sent successfully" };
     } catch (error) {
       console.error("Email sending failed. Details:", {
-        errorCode: error.code,
-        errorText: error.text,
+        errorCode: error?.code,
+        errorText: error?.text,
+        message: error?.message,
         fullError: error,
       });
       return {
         success: false,
-        message: `Email sending failed: ${error.text || error.message}`,
+        message: `Email sending failed: ${
+          error?.text || error?.message || "Unknown error"
+        }`,
       };
     }
   };
@@ -159,38 +157,35 @@ const Contactform = () => {
 
       if (emailResult.success) {
         setEmailStatus("success");
-
-        // Show success popup
-        setShowSuccessPopup(true);
-        setSuccessCountdown(5);
-
-        // Reset form
-        setFormData({
-          date: "",
-          name: "",
-          agent: "",
-          inrAmount: "",
-          usdAmount: "",
-          modeOfPayment: "",
-          address: "",
-          notes: "",
-          email: "",
-          phone: "",
-        });
-
-        setProducts([{ id: 1, product: "", qty: "" }]);
-        setShowPreviewBox(false);
-
-        // Reset form fields
-        if (formRef.current) {
-          formRef.current.reset();
-        }
       } else {
         setEmailStatus("failed");
         setErrors([emailResult.message]);
-        // Still show success popup for order placement
-        setShowSuccessPopup(true);
-        setSuccessCountdown(5);
+      }
+
+      // Show success popup regardless of email status
+      setShowSuccessPopup(true);
+      setSuccessCountdown(5);
+
+      // Reset form
+      setFormData({
+        date: "",
+        name: "",
+        agent: "",
+        inrAmount: "",
+        usdAmount: "",
+        modeOfPayment: "",
+        address: "",
+        notes: "",
+        email: "",
+        phone: "",
+      });
+
+      setProducts([{ id: 1, product: "", qty: "" }]);
+      setShowPreviewBox(false);
+
+      // Reset form fields
+      if (formRef.current) {
+        formRef.current.reset();
       }
     } catch (error) {
       console.error("Error in form submission:", error);
@@ -513,22 +508,28 @@ const Contactform = () => {
                     </h4>
                     <div className="bg-white border border-gray-200 rounded p-4 font-mono text-sm text-gray-700 whitespace-pre-line overflow-x-auto">
                       New Order from {formData.name} - {formData.date}
-                      Customer Information: - Name: {formData.name}- Email:{" "}
-                      {formData.email}- Phone: {formData.phone}- Agent:{" "}
-                      {formData.agent}
-                      Products:
+                      {"\n\n"}
+                      Customer Information:{"\n"}- Name: {formData.name}
+                      {"\n"}- Email: {formData.email}
+                      {"\n"}- Phone: {formData.phone}
+                      {"\n"}- Agent: {formData.agent}
+                      {"\n\n"}
+                      Products:{"\n"}
                       {getEmailFormattedProducts()}
-                      Amount Details: - INR Amount:{" "}
+                      {"\n\n"}
+                      Amount Details:{"\n"}- INR Amount:{" "}
                       {formData.inrAmount
                         ? `₹${formData.inrAmount}`
                         : "Not provided"}
-                      - USD Amount:{" "}
+                      {"\n"}- USD Amount:{" "}
                       {formData.usdAmount
                         ? `$${formData.usdAmount}`
                         : "Not provided"}
-                      Payment & Delivery: - Mode of Payment:{" "}
-                      {formData.modeOfPayment}- Delivery Address:{" "}
-                      {formData.address}- Additional Notes:{" "}
+                      {"\n\n"}
+                      Payment & Delivery:{"\n"}- Mode of Payment:{" "}
+                      {formData.modeOfPayment}
+                      {"\n"}- Delivery Address: {formData.address}
+                      {"\n"}- Additional Notes:{" "}
                       {formData.notes || "No additional notes"}
                     </div>
                   </div>
@@ -801,13 +802,9 @@ const Contactform = () => {
                       onChange={handleChange}
                       min="0"
                       step="0.01"
-                      required
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                       placeholder="0.00"
                     />
-                    <span className="absolute right-3 top-3 text-sm text-gray-500">
-                      INR
-                    </span>
                   </div>
                 </div>
 
@@ -829,9 +826,6 @@ const Contactform = () => {
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                       placeholder="0.00"
                     />
-                    <span className="absolute right-3 top-3 text-sm text-gray-500">
-                      USD
-                    </span>
                   </div>
                 </div>
               </div>
@@ -982,11 +976,11 @@ const Contactform = () => {
               {/* Success Message */}
               <h3 className="text-2xl font-bold text-gray-900 mb-2">
                 {emailStatus === "success"
-                  ? "Your message successful"
+                  ? "Order Submitted Successfully!"
                   : "Order Submitted"}
               </h3>
               <p className="text-lg text-gray-700 mb-4">
-                Thank you Maxx Company
+                Thank you for your order
               </p>
 
               {/* Email Status */}
